@@ -5,10 +5,16 @@ const channel = await connection.createChannel();
 const queue = "email";
 
 export async function consumeEmail() {
-    await channel.consume(queue, (message) => {
-        console.log("recieved email", message?.content.toString());
+    await channel.consume(queue, async (message) => {
+        if (!message) return;
+
+        console.log("Received:", message.content.toString());
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        channel.nack(message, true);
     }, {
-        noAck: true
+        noAck: false
     });
 }
 

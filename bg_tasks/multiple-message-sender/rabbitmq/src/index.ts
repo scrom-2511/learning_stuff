@@ -4,8 +4,6 @@ import "./setup"
 
 const app = express();
 
-for (let i = 0; i < 20; i++) {
-    await enqueueNotifications(`${i} message produced`);
-}
+await enqueueNotifications(`${1} message produced`);
 
 app.listen(3000)
