@@ -85,13 +85,20 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
     }
 
     fn get(&self, key: &K) -> Option<&V> {
-        let mut hasher = DefaultHasher::new();
-        key.hash(&mut hasher);
-
-        let bucket = hasher.finish() % self.buckets.len() as u64;
+        let bucket = Self::bucket(key, self.buckets.len());
         let bucket = &self.buckets[bucket as usize];
 
         bucket.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+
+    fn contains_key(&self, key: &K) -> bool {
+        let val = self.get(key);
+
+        if val.is_some() {
+            return true;
+        }
+
+        false
     }
 
     fn remove(&mut self, key: &K) -> Option<V> {
