@@ -18,6 +18,15 @@ impl<K, V> HashMap<K, V> {
 }
 
 impl<K: Hash + Eq, V> HashMap<K, V> {
+    fn bucket(key: &K, buckets_len: usize) -> usize {
+        let mut hasher = DefaultHasher::new();
+        key.hash(&mut hasher);
+
+        let bucket_index = hasher.finish() % buckets_len as u64;
+
+        bucket_index as usize
+    }
+
     fn resize(&mut self) {
         let current_size = self.buckets.len();
 
@@ -29,28 +38,25 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
         let mut new_buckets: Vec<Vec<(K, V)>> = (0..new_size).map(|_| Vec::new()).collect();
 
         for (k, v) in self.buckets.iter_mut().flat_map(|bucket| bucket.drain(..)) {
-            let mut hasher = DefaultHasher::new();
-            k.hash(&mut hasher);
+            let bucket = Self::bucket(&k, new_buckets.len());
 
-            let bucket_index = hasher.finish() % new_buckets.len() as u64;
-
-            new_buckets[bucket_index as usize].push((k, v));
+            new_buckets[bucket as usize].push((k, v));
         }
 
         self.buckets = new_buckets;
     }
 
     fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if self.buckets.len() == 0 {
+        if self.buckets.len() == 0 || (self.items + 1) * 4 > self.buckets.len() * 3 {
             self.resize();
         }
 
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
 
-        let bucket = hasher.finish() % self.buckets.len() as u64;
+        let bucket = Self::bucket(&key, self.buckets.len());
 
-        let bucket_to_insert = &mut self.buckets[bucket as usize];
+        let bucket_to_insert = &mut self.buckets[bucket];
 
         for (k, v) in bucket_to_insert.iter_mut() {
             if key == *k {
@@ -75,6 +81,16 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
 
         val
     }
+
+    fn remove(&mut self, key: &K) -> Option<V> {
+        let bucket_ind = Self::bucket(key, self.buckets.len());
+        let bucket = &mut self.buckets[bucket_ind];
+        let index = bucket.iter().position(|(k, _)| k == key)?;
+
+        self.items -= 1;
+
+        Some(bucket.swap_remove(index).1)
+    }
 }
 
 #[test]
@@ -83,6 +99,11 @@ fn test_insert_get() {
     let mut hashmap = HashMap::new();
     hashmap.insert("foo", 42);
 
-    let result = hashmap.get(&"foo");
-    assert_eq!(result, Some(&42));
+    let key = &"foo";
+
+    let get_result = hashmap.get(key);
+    assert_eq!(get_result, Some(&42));
+
+    let remove_result = hashmap.remove(key);
+    assert_eq!(remove_result, Some(42));
 }
