@@ -17,7 +17,21 @@ impl<K, V> HashMap<K, V> {
     }
 }
 
+impl<K, V> Default for HashMap<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K: Hash + Eq, V> HashMap<K, V> {
+    pub fn is_empty(&self) -> bool {
+        self.items == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.items
+    }
+
     fn bucket(key: &K, buckets_len: usize) -> usize {
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
@@ -40,14 +54,14 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
         for (k, v) in self.buckets.iter_mut().flat_map(|bucket| bucket.drain(..)) {
             let bucket = Self::bucket(&k, new_buckets.len());
 
-            new_buckets[bucket as usize].push((k, v));
+            new_buckets[bucket].push((k, v));
         }
 
         self.buckets = new_buckets;
     }
 
     fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if self.buckets.len() == 0 || (self.items + 1) * 4 > self.buckets.len() * 3 {
+        if self.buckets.is_empty() || (self.items + 1) * 4 > self.buckets.len() * 3 {
             self.resize();
         }
 
@@ -67,7 +81,7 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
         bucket_to_insert.push((key, value));
         self.items += 1;
 
-        return None;
+        None
     }
 
     fn get(&self, key: &K) -> Option<&V> {
@@ -77,9 +91,7 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
         let bucket = hasher.finish() % self.buckets.len() as u64;
         let bucket = &self.buckets[bucket as usize];
 
-        let val = bucket.iter().find(|(k, _)| k == key).map(|(_, v)| v);
-
-        val
+        bucket.iter().find(|(k, _)| k == key).map(|(_, v)| v)
     }
 
     fn remove(&mut self, key: &K) -> Option<V> {
@@ -96,8 +108,13 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
 #[test]
 
 fn test_insert_get() {
-    let mut hashmap = HashMap::new();
+    let mut hashmap = HashMap::default();
+    assert_eq!(hashmap.len(), 0);
+    assert_eq!(hashmap.is_empty(), true);
+
     hashmap.insert("foo", 42);
+    assert_eq!(hashmap.len(), 1);
+    assert_eq!(hashmap.is_empty(), false);
 
     let key = &"foo";
 
@@ -106,4 +123,10 @@ fn test_insert_get() {
 
     let remove_result = hashmap.remove(key);
     assert_eq!(remove_result, Some(42));
+
+    assert_eq!(hashmap.len(), 0);
+    assert_eq!(hashmap.is_empty(), true);
+
+    let remove_result = hashmap.remove(key);
+    assert_eq!(remove_result, None);
 }
